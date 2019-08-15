@@ -36,6 +36,7 @@ struct NodeOptions {
   double pose_publish_period_sec;
   double trajectory_publish_period_sec;
   bool use_pose_extrapolator = true;
+  bool invert_map_frame_to_published_frame_tf = false;
 };
 
 NodeOptions CreateNodeOptions(
