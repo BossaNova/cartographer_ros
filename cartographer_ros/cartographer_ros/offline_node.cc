@@ -26,6 +26,8 @@
 #include <chrono>
 
 #include "absl/strings/str_split.h"
+#include "cartographer/common/lua_parameter_dictionary.h"
+#include "cartographer/common/configuration_file_resolver.h"
 #include "cartographer_ros/node.h"
 #include "cartographer_ros/playable_bag.h"
 #include "cartographer_ros/urdf_reader.h"
@@ -74,6 +76,8 @@ DEFINE_bool(keep_running, false,
 DEFINE_double(skip_seconds, 0,
               "Optional amount of seconds to skip from the beginning "
               "(i.e. when the earliest bag starts.). ");
+DEFINE_bool(zone_mapping, true, "When daisy-chaining is followed to collect zone data");
+DEFINE_string(initial_pose, "", "Starting pose of a new trajectory");
 
 namespace cartographer_ros {
 
@@ -267,7 +271,7 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory) {
     LOG(WARNING) << "Available topics in bag file(s) are "
                  << bag_topics_string.str();
   }
-
+  int prev_trajectory_id = -1;
   std::unordered_map<int, int> bag_index_to_trajectory_id;
   const ros::Time begin_time =
       // If no bags were loaded, we cannot peek the time of first message.
@@ -292,9 +296,27 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory) {
     // Lazily add trajectories only when the first message arrives in order
     // to avoid blocking the sensor queue.
     if (bag_index_to_trajectory_id.count(bag_index) == 0) {
-      trajectory_id =
+      if(FLAGS_zone_mapping && prev_trajectory_id > -1) {
+        TrajectoryOptions options = bag_trajectory_options.at(bag_index);
+        ::cartographer::mapping::proto::InitialTrajectoryPose initial_pose;
+        
+        initial_pose.set_to_trajectory_id(prev_trajectory_id);
+        *initial_pose.mutable_relative_pose() = ::cartographer::transform::ToProto(::cartographer::transform::Rigid3d::Identity());
+        initial_pose.set_timestamp(cartographer::common::ToUniversal(FromRos(ros::Time::now())));
+
+        *options.trajectory_builder_options.mutable_initial_trajectory_pose() = initial_pose;
+         trajectory_id =
           node.AddOfflineTrajectory(bag_expected_sensor_ids.at(bag_index),
+                                    options);
+        prev_trajectory_id++; 
+
+      } else {
+        // If we are not following zone mapping
+        trajectory_id =
+            node.AddOfflineTrajectory(bag_expected_sensor_ids.at(bag_index),
                                     bag_trajectory_options.at(bag_index));
+        prev_trajectory_id++;
+      }
       CHECK(bag_index_to_trajectory_id
                 .emplace(std::piecewise_construct,
                          std::forward_as_tuple(bag_index),
@@ -303,9 +325,41 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory) {
       LOG(INFO) << "Assigned trajectory " << trajectory_id << " to bag "
                 << bag_filenames.at(bag_index);
     } else {
-      trajectory_id = bag_index_to_trajectory_id.at(bag_index);
-    }
 
+      if (prev_trajectory_id == 0) {
+        trajectory_id = bag_index_to_trajectory_id.at(bag_index);
+        if (msg.getTime() > (begin_time + ros::Duration(10.0)) && !FLAGS_initial_pose.empty()) {
+          node.FinishTrajectory(trajectory_id);
+          TrajectoryOptions options = bag_trajectory_options.at(bag_index);
+          ::cartographer::mapping::proto::InitialTrajectoryPose initial_pose;
+
+          // Finish the first trajectroy and start a new zone with relative pose
+          auto initial_trajectory_pose_file_resolver =
+              absl::make_unique<cartographer::common::ConfigurationFileResolver>(
+                  std::vector<std::string>{FLAGS_configuration_directory});
+          auto initial_trajectory_pose =
+              cartographer::common::LuaParameterDictionary::NonReferenceCounted(
+                  "return " + FLAGS_initial_pose,
+                  std::move(initial_trajectory_pose_file_resolver));
+          initial_pose.set_to_trajectory_id(prev_trajectory_id);
+          *initial_pose.mutable_relative_pose() =
+              cartographer::transform::ToProto(cartographer::transform::FromDictionary(
+                  initial_trajectory_pose->GetDictionary("relative_pose").get()));
+          initial_pose.set_timestamp(cartographer::common::ToUniversal(FromRos(ros::Time::now())));
+            
+          *options.trajectory_builder_options.mutable_initial_trajectory_pose() = initial_pose;
+          trajectory_id =
+            node.AddOfflineTrajectory(bag_expected_sensor_ids.at(bag_index),
+                                      options);
+
+          LOG(INFO) << "Assigned trajectory " << trajectory_id << " to bag "
+                << bag_filenames.at(bag_index);
+          prev_trajectory_id++;
+        }
+      } else {
+        trajectory_id = prev_trajectory_id;
+      } 
+    }
     const auto bag_topic = std::make_pair(
         bag_index,
         node.node_handle()->resolveName(msg.getTopic(), false /* resolve */));
