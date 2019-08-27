@@ -17,13 +17,14 @@
 
 <package format="2">
   <name>cartographer_ros_msgs</name>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <description>
     ROS messages for the cartographer_ros package.
+    This package comes with some BNR fixes to support custom practices.
   </description>
-  <maintainer email="cartographer-owners@googlegroups.com">
-    The Cartographer Authors
-  </maintainer>
+  <maintainer email="sindhura@bossanova.com">Sindhura Chayapathy</maintainer>
+  <maintainer email="akshay.prasad@bossanova.com">Akshay Prasad</maintainer>
+  <maintainer email="cartographer-owners@googlegroups.com">The Cartographer Authors</maintainer>
   <license>Apache 2.0</license>
 
   <url>https://github.com/googlecartographer/cartographer_ros</url>

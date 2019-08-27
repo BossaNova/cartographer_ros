@@ -17,15 +17,16 @@
 
 <package format="2">
   <name>cartographer_ros</name>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <description>
     Cartographer is a system that provides real-time simultaneous localization
     and mapping (SLAM) in 2D and 3D across multiple platforms and sensor
     configurations. This package provides Cartographer's ROS integration.
+    This package comes with some BNR fixes to support custom practices.
   </description>
-  <maintainer email="cartographer-owners@googlegroups.com">
-    The Cartographer Authors
-  </maintainer>
+  <maintainer email="sindhura@bossanova.com">Sindhura Chayapathy</maintainer>
+  <maintainer email="akshay.prasad@bossanova.com">Akshay Prasad</maintainer>
+  <maintainer email="cartographer-owners@googlegroups.com">The Cartographer Authors</maintainer>
   <license>Apache 2.0</license>
 
   <url>https://github.com/googlecartographer/cartographer_ros</url>
@@ -41,8 +42,8 @@
   <build_depend>protobuf-dev</build_depend>
   <build_depend>python-sphinx</build_depend>
 
-  <depend version_gte="1.0.0">cartographer</depend>
-  <depend version_gte="1.0.0">cartographer_ros_msgs</depend>
+  <depend version_gte="1.0.1">cartographer</depend>
+  <depend version_gte="1.0.1">cartographer_ros_msgs</depend>
   <depend>eigen_conversions</depend>
   <depend>geometry_msgs</depend>
   <depend>libgflags-dev</depend>
