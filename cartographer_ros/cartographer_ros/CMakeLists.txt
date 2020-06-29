@@ -60,6 +60,7 @@ install(TARGETS cartographer_occupancy_grid_node
 
 google_binary(cartographer_rosbag_validate
   SRCS
+    message_checker.cc
     rosbag_validate_main.cc
 )
 
